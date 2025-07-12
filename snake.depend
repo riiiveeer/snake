@@ -1,0 +1,41 @@
+# depslib dependency file v1.0
+1751768125 source:d:\大一夏程序设计实践\snake\snake\main.cpp
+	"game.h"
+
+1751768125 d:\大一夏程序设计实践\snake\snake\game.h
+	<ncurses.h>
+	<string>
+	<vector>
+	<memory>
+	"snake.h"
+
+1751768125 d:\大一夏程序设计实践\snake\snake\snake.h
+	<vector>
+
+1751774305 source:d:\大一夏程序设计实践\snake\snake\snake.cpp
+	<string>
+	<cstdlib>
+	<ctime>
+	<iostream>
+	"snake.h"
+
+1751768125 source:d:\cs1605_01\snake\snake\main.cpp
+	"game.h"
+
+1751768125 d:\cs1605_01\snake\snake\game.h
+	<ncurses.h>
+	<string>
+	<vector>
+	<memory>
+	"snake.h"
+
+1751768125 d:\cs1605_01\snake\snake\snake.h
+	<vector>
+
+1751774305 source:d:\cs1605_01\snake\snake\snake.cpp
+	<string>
+	<cstdlib>
+	<ctime>
+	<iostream>
+	"snake.h"
+

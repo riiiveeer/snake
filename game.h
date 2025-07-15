@@ -47,11 +47,11 @@ public:
     bool renderRestartMenu() const;
     void adjustDelay();
 
-    bool renderPauseMenu() const;  // 创建暂停菜单
+    int renderPauseMenu() const;  // 创建暂停菜单
     void togglePause();  // 添加暂停/恢复方法
     bool isGamePaused() const;  // 获取当前状态
 
-    enum class GameMode { CLASSIC, ENDLESS };
+    enum class GameMode { CLASSIC, ENDLESS, OPTIONS };
     void showMainMenu();
     void runClassicMode();
     void runEndlessMode();
@@ -89,6 +89,14 @@ private:
     std::vector<int> mLeaderBoard;
     const int mNumLeaders = 3;
     GameMode mCurrentMode = GameMode::CLASSIC;
+    int mOptionIndex = 0;
+    bool mOptionActive = false;
+    int mEditableOptionsCount = 2;
+    std::vector<int*> mOptionValues = {
+      &mInitialLength,
+      &mBaseDelay,
+    };
+    int mInitialLength = 2;
 };
 
 #endif

@@ -105,14 +105,14 @@ void Game::renderInstructionBoard() const
     */
     mvwprintw(this->mWindows[2], 1, 1, "Manual");
 
-    mvwprintw(this->mWindows[2], 3, 1, "Up: W");
-    mvwprintw(this->mWindows[2], 4, 1, "Down: S");
-    mvwprintw(this->mWindows[2], 5, 1, "Left: A");
-    mvwprintw(this->mWindows[2], 6, 1, "Right: D");
-    mvwprintw(this->mWindows[2], 7, 1, "Pause: P");
+    mvwprintw(this->mWindows[2], 2, 1, "Up: W");
+    mvwprintw(this->mWindows[2], 3, 1, "Down: S");
+    mvwprintw(this->mWindows[2], 4, 1, "Left: A");
+    mvwprintw(this->mWindows[2], 5, 1, "Right: D");
+    mvwprintw(this->mWindows[2], 6, 1, "Pause: P");
 
-    mvwprintw(this->mWindows[2], 9, 1, "Difficulty");
-    mvwprintw(this->mWindows[2], 12, 1, "Points");
+    mvwprintw(this->mWindows[2], 8, 1, "Difficulty");
+    mvwprintw(this->mWindows[2], 11, 1, "Points");
 
     wrefresh(this->mWindows[2]);
 }
@@ -213,7 +213,7 @@ bool Game::renderRestartMenu() const
     
 }
 
-bool Game::renderPauseMenu() const
+int Game::renderPauseMenu() const
 {
     WINDOW* menu;
     int width = this->mGameBoardWidth * 0.5;
@@ -281,28 +281,20 @@ bool Game::renderPauseMenu() const
     }
     delwin(menu);
 
-    // 返回结果
-    switch(index) {
-        case 0: return false;  // continue
-        case 1: return true;   // restart
-        case 2: 
-            endwin();    
-            exit(0);       // quit
-        default: return false;
-    }
+    return index;
 }
 
 void Game::renderPoints() const
 {
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(this->mWindows[2], 13, 1, pointString.c_str());
+    mvwprintw(this->mWindows[2], 12, 1, pointString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderDifficulty() const
 {
     std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 10, 1, difficultyString.c_str());
+    mvwprintw(this->mWindows[2], 9, 1, difficultyString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -504,11 +496,15 @@ void Game::runGame()
         this->renderDifficulty(); 
         if (mIsPaused) {
             // CD: 弹出暂停菜单:
-            bool shouldRestart = this->renderPauseMenu();
-            if (shouldRestart) {
+            int shouldRestart = this->renderPauseMenu();
+            if (shouldRestart == 1) {
                 mIsPaused = false;
                 mExitReason = GameExitReason::PLAYER_RESTART;
                 return;
+            }
+            else if (shouldRestart == 2) {
+                mExitReason = GameExitReason::QUIT;
+                return; // 返回主菜单
             }
             this->togglePause();
             continue;
@@ -528,8 +524,8 @@ void Game::runGame()
                 
                 //this->renderBoards();
                 mExitReason = GameExitReason::COLLISION;
-                //return;
-                break;
+                //this->renderRestartMenu();
+                return;
             }
             else if (!this->mPtrSnake->touchFood())
             {
@@ -557,6 +553,17 @@ void Game::startGame()
     while (true)
     {
         this->showMainMenu();
+        switch (mCurrentMode) {
+            case GameMode::CLASSIC:
+                this->runClassicMode();
+                break;
+            case GameMode::ENDLESS:
+                this->runEndlessMode();
+                break;
+            case GameMode::OPTIONS:
+                this->showOptions();
+                break;
+        }
         /*this->readLeaderBoard();
         this->renderBoards();
         this->initializeGame();
@@ -570,6 +577,7 @@ void Game::startGame()
             case GameExitReason::QUIT:
                 break;
         }*/
+        
         this->updateLeaderBoard();
         this->writeLeaderBoard();
     }
@@ -684,20 +692,20 @@ void Game::showMainMenu()
                 switch (highlight) {
                     case 0:
                         mCurrentMode = GameMode::CLASSIC;
-                        runClassicMode();
-                        break;;
+                        //runClassicMode();
+                        break;
                     case 1:
                         mCurrentMode = GameMode::ENDLESS;
-                        runEndlessMode();
-                        break;;
+                        //runEndlessMode();
+                        break;
                     case 2:
-                        showOptions();
+                        mCurrentMode = GameMode::OPTIONS;
                         break;  // return to main menu
                     case 3:
                         endwin();
                         exit(0);
                 }
-                break;
+            return;
             // 还有快捷键：
             case '1':
                 delwin(menuWin);
@@ -725,7 +733,19 @@ void Game::runClassicMode() {
         this->readLeaderBoard();
         this->renderBoards();
         this->initializeGame();
+        mIsPaused = false;
         this->runGame(); 
+        switch (mExitReason) {
+            case GameExitReason::PLAYER_RESTART:
+                continue; // 直接重启
+            case GameExitReason::COLLISION:
+                if (!this->renderRestartMenu()) {
+                    return;
+                }
+                break;
+            case GameExitReason::QUIT:
+                return;
+        }
     }
 }
 
@@ -734,7 +754,95 @@ void Game::runEndlessMode() {
 }
 
 void Game::showOptions() {
-    // 设置选项
+    int height = 10;
+    int width = 60;
+    int startY = (mScreenHeight - height) / 2;
+    int startX = (mScreenWidth - width) / 2;
+
+    WINDOW* optionsWin = newwin(height, width, startY, startX);
+    box(optionsWin, 0, 0);
+
+    std::vector<std::string> options = {
+        "Initial Length",
+        "Speed",
+        "Color Theme",
+        "Back"
+    };
+
+    int highlight = 0;
+    keypad(optionsWin, true);
+    mOptionIndex = 0; // CD: 添加选项索引
+    mOptionActive = false; // CD: 添加选项激活状态
+
+    while (true) {
+        for (int i = 0; i < options.size(); i++) {
+            int y = i+2;
+            wmove(optionsWin, y, 1);
+            wclrtoeol(optionsWin);
+
+            if (i == highlight)
+                wattron(optionsWin, A_REVERSE);
+            if (i < mEditableOptionsCount) {
+                if (mOptionActive && mOptionIndex == i) {
+                    std::string optionText = options[i] + ": <" + std::to_string(*mOptionValues[i]) + ">";
+                    mvwprintw(optionsWin, i+2, 2, optionText.c_str());
+                } else {
+                    std::string optionText = options[i] + ": " + std::to_string(*mOptionValues[i]);
+                    mvwprintw(optionsWin, i+2, 2, optionText.c_str());
+                }  
+            } else {
+                mvwprintw(optionsWin, i+2, 2, options[i].c_str());
+            }
+            if (i == highlight)
+                wattroff(optionsWin, A_REVERSE);
+        }
+
+        wrefresh(optionsWin);
+
+        int key = wgetch(optionsWin);
+
+        if (mOptionActive) {
+            switch (key) {
+                case 'a':
+                case 'A':
+                case KEY_LEFT:
+                    *mOptionValues[mOptionIndex] = std::max(1, (*mOptionValues[mOptionIndex]) - 1);
+                    break;
+                case 'd':
+                case 'D':
+                case KEY_RIGHT:
+                    (*mOptionValues[mOptionIndex]) += 1;
+                    break;
+                case 10:
+                case ' ':
+                    mOptionActive = false; // 退出编辑状态
+                    break;
+            }
+        } else {
+            switch (key) {
+                case 'w':
+                case 'W':
+                case KEY_UP:
+                    highlight = (highlight - 1 + options.size()) % options.size();
+                    break;
+                case 'S':
+                case 's':
+                case KEY_DOWN:
+                    highlight = (highlight + 1) % options.size();
+                    break;
+                case 10:
+                case ' ':
+                    if (highlight == options.size() - 1) {
+                        delwin(optionsWin);
+                        return;
+                    } else {
+                        mOptionActive = true;
+                        mOptionIndex = highlight; 
+                    }
+                    break;
+            }
+        }
+    }
 }
 
 

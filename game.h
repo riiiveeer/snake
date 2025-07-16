@@ -5,8 +5,10 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono>
 
 #include "snake.h"
+#include "map.h"
 
 
 class Game
@@ -57,6 +59,9 @@ public:
     void runEndlessMode();
     void showOptions();
 
+    //void renderMap() const;
+    void selectMap();
+
     
 
 private:
@@ -83,8 +88,8 @@ private:
     const char mFoodSymbol = '#';
     int mPoints = 0;
     int mDifficulty = 0;
-    int mBaseDelay = 100;
-    int mDelay;
+    int mBaseDelay = 150;
+    // int mDelay;
     const std::string mRecordBoardFilePath = "record.dat";
     std::vector<int> mLeaderBoard;
     const int mNumLeaders = 3;
@@ -97,6 +102,14 @@ private:
       &mBaseDelay,
     };
     int mInitialLength = 2;
+    bool mIsFastSpeed = false;
+    int mLastDifficulty = -1;
+    //maps:
+    std::vector<GameMap> mAvailableMaps;
+    int mSelectedMapIndex = 0;
+    GameMap mCurrentMap;
+    void renderMap() const;
+    bool isObstacleAt(int x, int y) const;
 };
 
 #endif

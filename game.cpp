@@ -8,8 +8,10 @@
 
 #include <fstream>
 #include <algorithm> 
+#include <chrono>
 
 #include "game.h"
+#include "map.h"
 
 Game::Game() : mIsPaused(false)
 {
@@ -35,6 +37,11 @@ Game::Game() : mIsPaused(false)
 
     // Initialize the leader board to be all zeros
     this->mLeaderBoard.assign(this->mNumLeaders, 0);
+
+    //maps
+    this->mAvailableMaps = GameMap::getDefaultMaps(mGameBoardWidth, mGameBoardHeight);  // 获取默认地图列表
+    this->mSelectedMapIndex = 0;                       // 默认选择第一个地图
+    this->mCurrentMap = mAvailableMaps[mSelectedMapIndex]; // 设置当前地图
 
 }
 
@@ -83,6 +90,8 @@ void Game::createGameBoard()
 void Game::renderGameBoard() const
 {
     wrefresh(this->mWindows[1]);
+    renderMap();
+    wrefresh(this->mWindows[1]);
 }
 
 void Game::createInstructionBoard()
@@ -94,15 +103,6 @@ void Game::createInstructionBoard()
 
 void Game::renderInstructionBoard() const
 {
-    /*const char* status = mIsPaused ? "PAUSED" : "PLAYING";
-    if (mIsPaused) {
-        wattron(mWindows[2], A_STANDOUT);
-        mvwprintw(this->mWindows[2], 1, 1, "status: %s", status);
-        wattroff(mWindows[2], A_STANDOUT);
-    } else {
-        mvwprintw(this->mWindows[2], 1, 1, "status: %s", status);
-    }
-    */
     mvwprintw(this->mWindows[2], 1, 1, "Manual");
 
     mvwprintw(this->mWindows[2], 2, 1, "Up: W");
@@ -110,9 +110,10 @@ void Game::renderInstructionBoard() const
     mvwprintw(this->mWindows[2], 4, 1, "Left: A");
     mvwprintw(this->mWindows[2], 5, 1, "Right: D");
     mvwprintw(this->mWindows[2], 6, 1, "Pause: P");
+    mvwprintw(this->mWindows[2], 7, 1, "Speed-Up: J");
 
-    mvwprintw(this->mWindows[2], 8, 1, "Difficulty");
-    mvwprintw(this->mWindows[2], 11, 1, "Points");
+    mvwprintw(this->mWindows[2], 9, 1, "Difficulty");
+    mvwprintw(this->mWindows[2], 12, 1, "Points");
 
     wrefresh(this->mWindows[2]);
 }
@@ -125,15 +126,15 @@ void Game::renderLeaderBoard() const
     {
         return;
     }
-    mvwprintw(this->mWindows[2], 14, 1, "Leader Board");
+    mvwprintw(this->mWindows[2], 15, 1, "Leader Board");
     std::string pointString;
     std::string rank;
     for (int i = 0; i < std::min(this->mNumLeaders, this->mScreenHeight - this->mInformationHeight - 14 - 2); i ++)
     {
         pointString = std::to_string(this->mLeaderBoard[i]);
         rank = "#" + std::to_string(i + 1) + ":";
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 1, rank.c_str());
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 5, pointString.c_str());
+        mvwprintw(this->mWindows[2], 15 + (i + 1), 1, rank.c_str());
+        mvwprintw(this->mWindows[2], 15 + (i + 1), 5, pointString.c_str());
     }
     wrefresh(this->mWindows[2]);
 }
@@ -287,14 +288,14 @@ int Game::renderPauseMenu() const
 void Game::renderPoints() const
 {
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(this->mWindows[2], 12, 1, pointString.c_str());
+    mvwprintw(this->mWindows[2], 13, 1, pointString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderDifficulty() const
 {
     std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 9, 1, difficultyString.c_str());
+    mvwprintw(this->mWindows[2], 10, 1, difficultyString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -310,8 +311,8 @@ void Game::initializeGame()
     }
         start_color();
         init_pair(1, COLOR_GREEN, COLOR_BLACK);
-        init_pair(2, COLOR_YELLOW, COLOR_BLACK);
-        init_pair(3, COLOR_WHITE, COLOR_BLUE);
+        init_pair(2, COLOR_RED, COLOR_YELLOW);
+        init_pair(3, COLOR_BLUE, COLOR_RED);
     
 
     this->mPoints = 0;
@@ -323,6 +324,11 @@ void Game::initializeGame()
     this->createRamdonFood();
     this->renderFood();
 
+    this->mBaseDelay = 150;
+    this->mIsFastSpeed = false;
+
+    this->mCurrentMap = mAvailableMaps[mSelectedMapIndex];
+    //this->renderMap();
 }
 
 void Game::createRamdonFood()
@@ -336,7 +342,8 @@ void Game::createRamdonFood()
     do {
         foodX = rand() % (this->mGameBoardWidth - 2) +1;
         foodY = rand() % (this->mGameBoardHeight - 2) +1;
-    } while (this->mPtrSnake->isPartOfSnake(foodX, foodY));
+    } while (this->mPtrSnake->isPartOfSnake(foodX, foodY)
+            || this->isObstacleAt(foodX, foodY));  // 食物不能生成在障碍物上
 
     SnakeBody food(foodX,foodY);
     this->mFood = food;
@@ -378,6 +385,8 @@ void Game::renderSnake() const
 void Game::controlSnake()   // CD: added pause function
 {
     int key = getch();
+    bool directionKeyPressed = false;
+
     switch(key)
     {
         case 'P':
@@ -445,11 +454,17 @@ void Game::controlSnake()   // CD: added pause function
             }
             break;
         }
+        case 'J':
+        case 'j':
+        {
+            mIsFastSpeed = !mIsFastSpeed;
+        }
         default:
         {
             break;
         }
     }
+
 }
 
 void Game::renderBoards() const
@@ -475,9 +490,11 @@ void Game::renderBoards() const
 void Game::adjustDelay()
 {
     this->mDifficulty = this->mPoints / 5;
-    if (mPoints % 5 == 0)
+    
+    if (mLastDifficulty != mDifficulty)
     {
-        this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
+        mLastDifficulty = mDifficulty;
+        this->mBaseDelay = this->mBaseDelay - (10 * this->mDifficulty);
     }
 }
 
@@ -511,15 +528,10 @@ void Game::runGame()
         }
 
         if (!mIsPaused) 
-        {
-            // 渲染游戏元素
-            /*this->renderSnake();
-            this->renderFood();
-            this->renderPoints();
-            this->renderDifficulty(); */           
-            this->adjustDelay();
-
-            if (this->mPtrSnake->checkCollision()) 
+        {        
+            this->adjustDelay();  
+            if (this->mPtrSnake->checkCollision() 
+            || this->mPtrSnake->hitObstacle(mCurrentMap.getObstacles()))
             {
                 
                 //this->renderBoards();
@@ -539,9 +551,10 @@ void Game::runGame()
 
         }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
-            this->renderBoards();
-            refresh();
+        int actualDelay = mIsFastSpeed ? mBaseDelay / 2 : mBaseDelay;
+        std::this_thread::sleep_for(std::chrono::milliseconds(actualDelay));
+        this->renderBoards();
+        refresh();
         
     }
 }
@@ -729,6 +742,12 @@ void Game::showMainMenu()
 void Game::runClassicMode() {
     // 经典模式初始化
     mCurrentMode = GameMode::CLASSIC;
+    this->selectMap();
+
+    if (mAvailableMaps.empty()) {
+        return;  // 回到主菜单
+    }
+
     while (true) {
         this->readLeaderBoard();
         this->renderBoards();
@@ -845,7 +864,84 @@ void Game::showOptions() {
     }
 }
 
+void Game::renderMap() const {
+    wattron(this->mWindows[1], COLOR_PAIR(3));
+    for (const auto& obs:mCurrentMap.getObstacles()) {
+        mvwaddch(this->mWindows[1], obs.y, obs.x, '%');
+    }
+    wattroff(this->mWindows[1], COLOR_PAIR(3));
+}
 
+void Game::selectMap() {
+    clear();
+    refresh();
+
+    int height = 8;
+    int width = 30;
+    int startY = (mScreenHeight - height) / 2;
+    int startX = (mScreenWidth - width) / 2;
+
+    WINDOW* mapWin = newwin(height, width, startY, startX);
+    box(mapWin, 0, 0);
+
+    std::vector<std::string> mapNames = {
+        "Empty Field", "Boxed Arena", "Crossing Field", "Random", "Back"
+    };
+
+    int highlight = 0;
+    keypad(mapWin, true);
+
+    mvwprintw(mapWin, 1, 2, "Choose a Map:");
+
+    while (true) {
+        
+        for (int i = 0; i < mapNames.size(); i++) {
+            if (i == highlight)
+                wattron(mapWin, A_REVERSE);
+            mvwprintw(mapWin, i + 2, 4, mapNames[i].c_str());
+            if (i == highlight)
+                wattroff(mapWin, A_REVERSE);
+        }
+
+        wrefresh(mapWin);
+        int key = wgetch(mapWin);
+        switch (key) {
+            case 'w':
+            case 'W':
+            case KEY_UP:
+                highlight = (highlight - 1 + mapNames.size()) % mapNames.size();
+                break;
+            case 's':
+            case 'S':
+            case KEY_DOWN:
+                highlight = (highlight + 1) % mapNames.size();
+                break;
+            case 10:
+            case ' ':
+                //mCurrentMap.loadFromFile(mapFiles[highlight]);
+                if (highlight == mapNames.size()-1) {
+                    return;
+                } 
+                else if (highlight == mapNames.size()-2) {
+                    mSelectedMapIndex = rand() % mAvailableMaps.size();
+                }
+                else {
+                    mSelectedMapIndex = highlight;
+                }
+                delwin(mapWin);
+                return;
+        }
+    }
+}
+
+bool Game::isObstacleAt(int x, int y) const {
+    for (const auto& obs : this->mCurrentMap.getObstacles()) {
+        if (obs.x == x && obs.y == y) {
+            return true;
+        }
+    }
+    return false;
+}
 
 
 

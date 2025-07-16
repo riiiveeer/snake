@@ -2,6 +2,7 @@
 #define SNAKE_H
 
 #include <vector>
+#include "map.h"
 
 enum class Direction
 {
@@ -40,14 +41,17 @@ public:
     bool touchFood();
     // Check if the snake is dead
     bool hitWall();
+    bool hitObstacle(const std::vector<Obstacle>& obstacles) const;
     bool hitSelf();
     bool checkCollision();
 
     bool changeDirection(Direction newDirection);
     std::vector<SnakeBody>& getSnake();
     int getLength();
+    Direction getDirection();
     SnakeBody createNewHead();
     bool moveFoward();
+
 
 private:
     const int mGameBoardWidth;

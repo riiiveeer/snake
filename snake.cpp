@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include "snake.h"
-
+#include "map.h"
 
 SnakeBody::SnakeBody()
 {
@@ -99,13 +99,42 @@ bool Snake::hitWall()
                 return true; // hit the right wall
             }
             break;
-        }
+    }
     return false;
 }
 
-/*
- * The snake head is overlapping with its body
- */
+bool Snake::hitObstacle(const std::vector<Obstacle>& obstacles) const
+{
+    int headY = this->mSnake[0].getY();
+    int headX = this->mSnake[0].getX();
+
+    for (const auto& obs : obstacles) {
+        switch (this->mDirection) {
+            case Direction::Up:
+                if (headX == obs.x && headY == (obs.y + 1)) {
+                    return true;
+                }
+                break;
+            case Direction::Down:
+                if (headX == obs.x && headY == (obs.y - 1)) {
+                    return true;
+                }
+                break;
+            case Direction::Left:
+                if (headX == (obs.x + 1) && headY == obs.y) {
+                    return true;
+                }
+                break;
+            case Direction::Right:
+                if (headX == (obs.x - 1) && headY == obs.y) {
+                    return true;
+                }
+                break;
+        }
+    }
+    return false;
+}
+
 bool Snake::hitSelf()
 {
 	// DONE check if the snake has hit itself.
@@ -219,30 +248,37 @@ bool Snake::changeDirection(Direction newDirection)
 
 SnakeBody Snake::createNewHead()
 {
-		/* TODO
-		 * read the position of the current head
-		 * read the current heading direction 
-		 * add the new head according to the direction
-		 * return the new snake
-		 */
+    // 获取当前头部坐标
     int headX = this->mSnake[0].getX();
     int headY = this->mSnake[0].getY();
 
+    // 根据方向计算新头部坐标（先计算再检查边界）
     switch (this->mDirection) {
-        case Direction::Up:
-            this->mSnake.insert(this->mSnake.begin(), SnakeBody(headX, headY - 1));
-            break;
-        case Direction::Down:
-            this->mSnake.insert(this->mSnake.begin(), SnakeBody(headX, headY + 1));
-            break;
-        case Direction::Left:
-            this->mSnake.insert(this->mSnake.begin(), SnakeBody(headX - 1, headY));
-            break;
-        case Direction::Right:
-            this->mSnake.insert(this->mSnake.begin(), SnakeBody(headX + 1, headY));
-            break;
+        case Direction::Up:    headY--; break;
+        case Direction::Down:  headY++; break;
+        case Direction::Left:  headX--; break;
+        case Direction::Right: headX++; break;
     }
-    SnakeBody newHead = this->mSnake[0];
+
+    // 边界穿越逻辑
+    if (headX < 1) {
+        headX = mGameBoardWidth - 2;  // 从右侧出现
+    } 
+    else if (headX >= mGameBoardWidth - 1) {
+        headX = 1;  // 从左侧出现
+    }
+
+    if (headY < 1) {
+        headY = mGameBoardHeight - 2;  // 从底部出现
+    } 
+    else if (headY >= mGameBoardHeight - 1) {
+        headY = 1;  // 从顶部出现
+    }
+
+    // 创建新头部并插入蛇身
+    SnakeBody newHead(headX, headY);
+    this->mSnake.insert(this->mSnake.begin(), newHead);
+    
     return newHead;
 }
 
@@ -251,12 +287,6 @@ SnakeBody Snake::createNewHead()
  */
 bool Snake::moveFoward()
 {
-    /* 
-		 * TODO 
-		 * move the snake forward. 
-     * If eat food, return true, otherwise return false
-     */
-    // ?
     if (this->touchFood()) {
         return true;
     } else {
@@ -267,7 +297,7 @@ bool Snake::moveFoward()
 
 bool Snake::checkCollision()
 {
-    if (this->hitWall() || this->hitSelf())
+    if (this->hitSelf())
     {
         return true;
     }
@@ -283,3 +313,7 @@ int Snake::getLength()
     return this->mSnake.size();
 }
 
+//诗人啊，怎么在这里挖坑
+Direction Snake::getDirection() {
+    return this->mDirection;
+}

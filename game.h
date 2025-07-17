@@ -80,7 +80,7 @@ private:
     const int mInstructionWidth = 18;
     std::vector<WINDOW *> mWindows;
     // Snake information
-    const int mInitialSnakeLength = 2;
+    int mInitialSnakeLength = 2;
     const char mSnakeSymbol = '@';
     std::unique_ptr<Snake> mPtrSnake;
     // Food information
@@ -88,7 +88,6 @@ private:
     const char mFoodSymbol = '#';
     int mPoints = 0;
     int mDifficulty = 0;
-    int mBaseDelay = 150;
     // int mDelay;
     const std::string mRecordBoardFilePath = "record.dat";
     std::vector<int> mLeaderBoard;
@@ -98,10 +97,13 @@ private:
     bool mOptionActive = false;
     int mEditableOptionsCount = 2;
     std::vector<int*> mOptionValues = {
-      &mInitialLength,
-      &mBaseDelay,
+      &mInitialSnakeLength,
+      &mSelectedDelay,
+      &mColorTheme
     };
-    int mInitialLength = 2;
+    int mSelectedDelay = 150;
+    int mBaseDelay;
+    int mColorTheme = 1;
     bool mIsFastSpeed = false;
     int mLastDifficulty = -1;
     //maps:

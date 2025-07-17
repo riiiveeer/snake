@@ -38,6 +38,12 @@ Game::Game() : mIsPaused(false)
     // Initialize the leader board to be all zeros
     this->mLeaderBoard.assign(this->mNumLeaders, 0);
 
+    mOptionValues.clear();
+    mOptionValues.push_back(&mInitialSnakeLength);  // Initial Length
+    mOptionValues.push_back(&mSelectedDelay);           // Speed
+    mOptionValues.push_back(&mColorTheme);          // Color Theme
+    mEditableOptionsCount = 3;                      // 可编辑的选项数量
+
     //maps
     this->mAvailableMaps = GameMap::getDefaultMaps(mGameBoardWidth, mGameBoardHeight);  // 获取默认地图列表
     this->mSelectedMapIndex = 0;                       // 默认选择第一个地图
@@ -89,7 +95,7 @@ void Game::createGameBoard()
 
 void Game::renderGameBoard() const
 {
-    wrefresh(this->mWindows[1]);
+    //wrefresh(this->mWindows[1]);
     renderMap();
     wrefresh(this->mWindows[1]);
 }
@@ -310,9 +316,16 @@ void Game::initializeGame()
         return;
     }
         start_color();
-        init_pair(1, COLOR_GREEN, COLOR_BLACK);
-        init_pair(2, COLOR_RED, COLOR_YELLOW);
-        init_pair(3, COLOR_BLUE, COLOR_RED);
+        
+        if (mColorTheme == 1) {
+            init_pair(1, COLOR_GREEN, COLOR_BLACK);
+            init_pair(2, COLOR_RED, COLOR_YELLOW);
+            init_pair(3, COLOR_BLUE, COLOR_RED);
+        } else {
+            init_pair(1, COLOR_CYAN, COLOR_BLACK);    
+            init_pair(2, COLOR_MAGENTA, COLOR_BLACK);
+            init_pair(3, COLOR_WHITE, COLOR_BLUE);   
+        }
     
 
     this->mPoints = 0;
@@ -324,7 +337,7 @@ void Game::initializeGame()
     this->createRamdonFood();
     this->renderFood();
 
-    this->mBaseDelay = 150;
+    this->mBaseDelay = this->mSelectedDelay;
     this->mIsFastSpeed = false;
 
     this->mCurrentMap = mAvailableMaps[mSelectedMapIndex];
